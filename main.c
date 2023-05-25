@@ -2,117 +2,66 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <time.h>
-#include <math.h>
-#include <stdbool.h>
 #include <sys/wait.h>
+#include <sys/errno.h>
 #include <sys/types.h>
-//openmp
-#include <omp.h> 
-
-#define BOARD_SIZE 9
+#include <sys/stat.h>
+#include <omp.h>
 
 
-int** setup_board(int size) {
-    int **board = (int **)malloc(size * sizeof(int *));
-    int i, j;
-    for (i = 0; i < size; i++) {
-        board[i] = (int *)malloc(size * sizeof(int));
-        for (j = 0; j < size; j++) {
-            board[i][j] = 0;
-        }
-    }
-    return board;
+void swap_values(int *a, int *b) {
+    int temp = *a;
+    *a = *b;
+    *b = temp;
 }
 
-
-void print_board(int **board, int size) {
-    int i, j;
-    for (i = 0; i < size; i++) {
-        printf("|");
-        for (j = 0; j < size; j++) {
-            printf("%d|", board[i][j]);
+int get_partition_index(int* data, int first, int last) {
+    int pivot = data[last];
+    int partition_index = first;
+    for(int i = first; i < last; i++) {
+        if(data[i] <= pivot) {
+            swap_values(&data[i], &data[partition_index]);
+            partition_index++;
         }
-        printf("\n");
     }
+    swap_values(&data[partition_index], &data[last]);
+    return partition_index;
+
 }
 
-//Check for duplicate numbers (excluding 0) in board array
-bool validate_board(int** board, int size) {
-    int i, j, k;
-    //Check rows
-    for(i = 0; i < size; i++) {
-        int row[BOARD_SIZE] = {0};
-        for(j = 0; j < size; j++) {
-            if(board[i][j] != 0) {
-                if(row[board[i][j]-1] == 0) {
-                    row[board[i][j]-1] = 1;
-                } else {
-                    return false;
-                }
-            }
-        }
+void quick_sort(int *data, int first, int last) {
+    if(first < last) {
+        int partition_index = get_partition_index(data, first, last);
+        quick_sort(data, first, partition_index - 1);
+        quick_sort(data, partition_index + 1, last);
     }
-    //Check columns
-    for(i = 0; i < size; i++) {
-        int col[BOARD_SIZE] = {0};
-        for(j = 0; j < size; j++) {
-            if(board[j][i] != 0) {
-                if(col[board[j][i]-1] == 0) {
-                    col[board[j][i]-1] = 1;
-                } else {
-                    return false;
-                }
-            }
-        }
-    }
-    //Check squares
-    for(i = 0; i < size; i+=3) {
-        for(j = 0; j < size; j+=3) {
-            int square[BOARD_SIZE] = {0};
-            for(k = 0; k < size; k++) {
-                if(board[i + (k/3)][j + (k%3)] != 0) {
-                    if(square[board[i + (k/3)][j + (k%3)]-1] == 0) {
-                        square[board[i + (k/3)][j + (k%3)]-1] = 1;
-                    } else {
-                        return false;
-                    }
-                }
-            }
-        }
-    }
-    return true;
 }
-
-bool solve_board(int **board, int unassigned_start, int unassigned_end) {
-    if(unassigned_start >= unassigned_end) {
-        return true;
-    }
-    int i = unassigned_start / BOARD_SIZE;
-    int j = unassigned_start - (i * BOARD_SIZE);
-    for(int k = 1; k <= BOARD_SIZE; k++) {
-        board[i][j] = k;
-        if(validate_board(board, BOARD_SIZE)) {
-            if(solve_board(board, unassigned_start+1, unassigned_end)) {
-                return true;
-            }
-        }
-    }
-    board[i][j] = 0;
-    return false;
-}
-
-
-
-
-
 
 
 
 int main() {
-    int ** board = setup_board(9);
-    solve_board(board, 0, 20);
-    printf("Solved board:\n");
-    print_board(board, 9);
+    int n, threads;
+    //Random data
+    //printf("Enter the number of data to be sorted (in millions): ");
+    //scanf("%d", &n);
+    //printf("Enter the number of threads: ");
+    //scanf("%d", &threads);
+    n = 1;
+    threads = 1;
+    n *= 10000;
+    int *data = (int *)malloc(sizeof(int) * n);
+    for (int i = 0; i < n; i++) {
+        data[i] = rand() % 1000000;
+    }
+    //Sort
+    double start = omp_get_wtime();
+    quick_sort(data, 0, n);
+    printf("Sorted data: ");
+    for (int i = 0; i < 100; i++) {
+        printf("%d \n", data[i]);
+    }
+    double end = omp_get_wtime();
+    printf("Time: %lf\n", end - start);
     return 0;
 }
+

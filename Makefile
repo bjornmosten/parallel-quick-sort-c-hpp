@@ -1,3 +1,3 @@
 all:
-	gcc -o main main.c -lpthread -lm
+	gcc -o main main.c -lpthread -lm -fopenmp
 	./main
