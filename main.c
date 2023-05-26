@@ -89,9 +89,6 @@ ll_node * partition(ll_node *head, ll_node *tail, ll_node **new_head, ll_node** 
 
 }
 
-//ERROR IS LIKELY DUE TO TAIL NOT BEING UPDATED
-//
-// Quick sort locally, returning the median after sorting
 ll_node * quick_sort_local(ll_node *head, ll_node *tail) {
     if (!head || head == tail) {
         return head;
