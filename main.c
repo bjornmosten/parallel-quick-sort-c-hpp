@@ -9,46 +9,11 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-// Linked list
-typedef struct ll_node {
-    int value;
-    struct ll_node *next;
-} ll_node;
 
-typedef struct ll {
-    ll_node *head;
-    ll_node *tail;
-} ll;
-
-// Linked list functions
-
-ll_node *create_node(int value) {
-    ll_node *node = (ll_node *)malloc(sizeof(ll_node));
-    node->value = value;
-    node->next = NULL;
-    return node;
-}
-
-ll_node * insert_node(ll * data, int value) {
-    ll_node *node = create_node(value);
-    if(data->head == NULL) {
-        data->head = node;
-        data->tail = node;
-        return node;
-    }
-    data->tail->next = node;
-    data->tail = node;
-    return node;
-}
-
-void print_list(ll_node *head) {
-    ll_node *current = head;
-    while (current != NULL) {
-        printf("%d ", current->value);
-        current = current->next;
-    }
-    printf("\n");
-}
+typedef struct thread_data {
+    int * data;
+    int data_n;
+} thread_data_t;
 
 void swap_values(int *a, int *b) {
     int temp = *a;
@@ -56,142 +21,190 @@ void swap_values(int *a, int *b) {
     *b = temp;
 }
 
-ll_node * partition(ll_node *head, ll_node *tail, ll_node **new_head, ll_node** new_tail) {
-    printf("start\n");
-    ll_node *pivot = tail;
-    ll_node *current = head;
-    ll_node *prev = NULL;
-    ll_node *end = tail;
-    while (current != pivot) {
-        if (current->value < pivot->value) {
-            if (*new_head == NULL) {
-                *new_head = current;
-            }
-            prev = current;
-            current = current->next;
-        } else {
-            if (prev != NULL) {
-                prev->next = current->next;
-            }
-            ll_node *temp = current->next;
-            current->next = NULL;
-            end->next = current;
-            end = current;
-            current = temp;
+int partition(int * data, int data_n) {
+    int pivot = data_n-1;
+    int pivot_value = data[pivot];
+    swap_values(data + pivot, data + data_n - 1);
+    int store_index = 0;
+    for (int i = 0; i < data_n - 1; i++) {
+        if (data[i] < pivot_value) {
+            swap_values(data + i, data + store_index);
+            store_index++;
         }
     }
-    if (new_head == NULL) {
-        *new_head = pivot;
+    swap_values(data + store_index, data + data_n - 1);
+    return store_index;
+}
+
+int quick_sort_local(int * data, int data_n) {
+    if (data_n <= 1) {
+        return data[0];
     }
-    *new_tail = end;
-    printf("end\n");
-    return pivot;
+    int pivot = partition(data, data_n);
+    quick_sort_local(data, pivot);
+    quick_sort_local(data + pivot + 1, data_n - pivot - 1);
+    return data[pivot];
+}
+
+int median(thread_data_t * thread_data) {
+    int * data = thread_data->data;
+    int data_n = thread_data->data_n;
+    quick_sort_local(data, data_n);
+    return data[data_n / 2];
+}
+
+void print_array(thread_data_t ** thread_data, int threads_n) {
+    for (int tid = 0; tid < threads_n; tid++) {
+        printf("Thread %d: ", tid);
+        for (int i = 0; i < thread_data[tid]->data_n; i++) {
+            printf("%d ", thread_data[tid]->data[i]);
+        }
+        printf("\n");
+    }
 
 }
 
-ll_node * quick_sort_local(ll_node *head, ll_node *tail) {
-    if (!head || head == tail) {
-        return head;
-    }
-    ll_node *new_head = NULL;
-    ll_node *new_tail = NULL;
-    ll_node * pivot = partition(head, tail, &new_head, &new_tail);
-    ll_node *current = new_head;
-    if(new_head != pivot) {
-        while (current->next != pivot) {
-            current = current->next;
-        }
-        current->next = NULL;
-        new_head = quick_sort_local(new_head, current);
-        current = new_head;
-        while (current->next != NULL) {
-            current = current->next;
-        }
-        current->next = pivot;
-    }
-    pivot->next = quick_sort_local(pivot->next, new_tail);
-    return new_head;
-}
-void print_array(int *data, int n) {
-    for (int i = 0; i < n; i++) {
-        printf("%d ", data[i]);
-    }
-    printf("\n");
-}
-/*
-    int split_points[num_threads];
-    for(int tid = 0; tid < num_threads; tid++) {
-        int first = tid * data_n / num_threads;
-        int last = (tid + 1) * data_n / num_threads;
-        for(int j = 0; j < last-first; j++) {
-            if(data[first+j] > pivot) {
-                break;
-            }
-            split_points[tid] = j;
-        }
-    }
-*/
 
-void split(ll_node *head, ll_node *tail, int pivot, ll_node *low, ll_node *high) {
-    ll_node *current = head;
-    while (current->value < pivot && current != tail && current != NULL) {
-        current = current->next;
-    }
-    // Split the list
-    low = head;
-    current->next = NULL;
-    high = current;
-
-}
-
-void global_sort(ll ** ll_data, int pivot, int num_threads) {
-    if (num_threads == 1) {
+void global_sort(thread_data_t ** thread_data, int group_thread_start, int group_thread_end) {
+    int group_size = group_thread_end - group_thread_start;
+    if (group_size == 1) {
         return;
-    }
-
-    // Exchange data
-    for (int g = 0; g < num_threads / 2; g++) {
-        int tid = g;
-        int tid_other = num_threads - tid - 1;
-
-        return;
-        ll_node *low;
-        ll_node *high;
-        split(ll_data[tid]->head, ll_data[tid]->tail, pivot, low, high);
-        ll_node *low_other;
-        ll_node *high_other;
-        split(ll_data[tid_other]->head, ll_data[tid_other]->tail, pivot, low_other, high_other);
-        low->next = low_other;
-        high_other->next = high;
-    }
-}
-
-int quick_sort_parallel(ll ** data, int group_size, int depth) {
-    if (group_size <= 1) {
-        return 0;
-    }
-    int thread_medians[group_size];
-    for (int tid = 0; tid < group_size; ++tid) {
-        thread_medians[tid] = quick_sort_local(data[tid]->head, data[tid]->tail);
     }
     int median_avg = 0;
-    for (int i = 0; i < group_size; i++) {
-        median_avg += thread_medians[i];
+    for(int tid = group_thread_start; tid < group_thread_end; tid++) {
+        median_avg += median(thread_data[tid]);
     }
     median_avg /= group_size;
-    global_sort(data, median_avg, group_size);
+    // Exchange data
+    for (int g = 0; g < group_size / 2; g++) {
+        const int tid0 = g + group_thread_start;
+        const int tid1 = group_thread_end - g - 1;
+        thread_data_t *thread0 = thread_data[tid0];
+        thread_data_t *thread1 = thread_data[tid1];
+        int values_low_to_high = 0;
+        int values_high_to_low = 0;
+        int move_from_low[thread_data[tid0]->data_n];
+        int move_from_low_n = 0;
+        for (int i = 0; i < thread0->data_n; i++) {
+            if (thread0->data[i] > median_avg) {
+                move_from_low[move_from_low_n] = i;
+                move_from_low_n++;
+            }
+        }
+        int move_from_high[thread_data[tid1]->data_n];
+        int move_from_high_n = 0;
+        for(int i = 0; i < thread1->data_n; i++) {
+            if (thread1->data[i] <= median_avg) {
+                move_from_high[move_from_high_n] = i;
+                move_from_high_n++;
+            }
+        }
+        //If more values are going to be moved from low to high, swap values and then
+        //perform transfers which increase or decrease data_n
+        if(move_from_low_n <= move_from_high_n) { 
+            int li = 0;
+            for (li = 0; li < move_from_low_n; li++) {
+                int index = move_from_low[li];
+                int value = thread0->data[index];
+                thread0->data[index] = thread1->data[move_from_high[li]];
+                thread1->data[move_from_high[li]] = value;
+            }
+            for(int hi = 0; hi+li < move_from_high_n; hi++) {
+                int move_index = move_from_high[li + hi];
+                thread0->data[thread0->data_n] = thread1->data[move_index];
 
+                int last_non_zero = 0;
+                for(int i = thread_data[tid1]->data_n-1; i >= 0; i--) {
+                    if(thread1->data[i] != 0) {
+                        last_non_zero = thread1->data[i];
+                        break;
+                    }
+                }
+                thread1->data[move_index] = last_non_zero;
+
+                thread0->data_n++;
+                thread1->data_n--;
+            }
+        }
+        //If more values are going to be moved from high to low, swap values and then
+        //perform transfers which increase or decrease data_n
+        if(move_from_low_n > move_from_high_n) {
+            int hi = 0;
+            for (hi = 0; hi < move_from_high_n; hi++) {
+                int index = move_from_high[hi];
+                int value = thread1->data[index];
+                thread1->data[index] = thread0->data[move_from_low[hi]];
+                thread0->data[move_from_low[hi]] = value;
+            }
+            for(int li = 0; li+hi < move_from_low_n; li++) {
+                int move_index = move_from_low[li + hi];
+                thread1->data[thread1->data_n] = thread0->data[move_index];
+                //Find last non-zero element
+                int last_non_zero = 0;
+                for (int i = thread0->data_n - 1; i >= 0; i--) {
+                    if (thread0->data[i] != 0) {
+                        last_non_zero = thread0->data[i];
+                        break;
+                    }
+                }
+                thread0->data[move_index] = last_non_zero;
+                thread1->data_n++;
+                thread0->data_n--;
+            }
+        }
+
+
+
+        int extend_high = values_low_to_high - values_high_to_low;
+        int extend_low = values_high_to_low - values_low_to_high;
+
+
+
+    }
+    #pragma omp parallel
+    {
+        #pragma omp task 
+        {
+            global_sort(thread_data, group_thread_start, group_thread_start + group_size / 2);
+        }
+        #pragma omp task 
+        {
+            global_sort(thread_data, group_thread_start + group_size / 2, group_thread_end);
+        }
+    }
 }
 
-bool validate(ll * data) {
-    ll_node *current = data->head;
-    while (current->next != NULL) {
-        if (current->value > current->next->value) {
-            return false;
+int quick_sort_parallel(thread_data_t ** thread_data, int threads_n) {
+    int * thread_medians = (int *)malloc(threads_n * sizeof(int));
+    #pragma omp parallel for schedule(dynamic) num_threads(threads_n)
+    for (int tid = 0; tid < threads_n; ++tid) {
+        quick_sort_local(thread_data[tid]->data, thread_data[tid]->data_n);
+    }
+    global_sort(thread_data, 0, threads_n);
+    #pragma omp parallel for schedule(dynamic) num_threads(threads_n)
+    for (int tid = 0; tid < threads_n; ++tid) {
+        quick_sort_local(thread_data[tid]->data, thread_data[tid]->data_n);
+    }
+}
+
+bool validate(thread_data_t ** thread_data, int threads_n) {
+    for(int tid = 0; tid < threads_n; tid++) {
+        if(tid > 0) {
+            if(thread_data[tid-1]->data[thread_data[tid-1]->data_n-1] > thread_data[tid]->data[0]) {
+                printf("Error: %d > %d\n", thread_data[tid-1]->data[thread_data[tid]->data_n-1], thread_data[tid]->data[0]);
+                return false;
+            }
         }
-        current = current->next;
+        for(int i = 0; i < thread_data[tid]->data_n-1; i++) {
+            if(thread_data[tid]->data[i] > thread_data[tid]->data[i+1]) {
+                return false;
+            }
+        }
     }
     return true;
+}
+
+void setup_threads() {
 }
 
 int main() {
@@ -202,25 +215,34 @@ int main() {
     // scanf("%d", &n);
     // printf("Enter the number of threads: ");
     // scanf("%d", &threads);
-    n = 1;
-    num_threads = 4;
-    n *= 20;
-    ll ** data_threads = (ll **)malloc(num_threads * sizeof(ll *));
-    for (int i = 0; i < num_threads; i++) {
-        data_threads[i] = (ll *)malloc(sizeof(ll));
-        for(int ni = 0; ni < n; ni++) {
-            insert_node(data_threads[i], rand() % 900 + 100);
+    n = 2000;
+    num_threads = 8;
+    n *= 1000;
+    int data_n_per_thread = n / num_threads;
+
+    thread_data_t **thread_data =
+        (thread_data_t **)malloc(num_threads * sizeof(thread_data_t *));
+    for (int tid = 0; tid < num_threads; tid++) {
+        thread_data[tid] = (thread_data_t *)malloc(sizeof(thread_data_t));
+        thread_data[tid]->data =
+            (int *)malloc(data_n_per_thread * 2 * sizeof(int));
+        thread_data[tid]->data_n = data_n_per_thread;
+        for (int i = 0; i < data_n_per_thread; i++) {
+            thread_data[tid]->data[i] = rand() % 900+100;
         }
     }
-
-    for (int i = 0; i < num_threads; i++) {
-        print_list(data_threads[i]->head);
-    }
+    //Set omp threads
+    omp_set_num_threads(num_threads);
+    quick_sort_parallel(thread_data, num_threads);
     printf("\n");
-    quick_sort_parallel(data_threads, num_threads, 0);
-    for (int i = 0; i < num_threads; i++) {
-        print_list(data_threads[i]->head);
-    }
+    /*bool valid = validate(thread_data, num_threads);
+    if(valid) {
+        printf("Valid\n");
+    } else {
+        printf("Invalid\n");
+    }*/
+
+    printf("\n");
     
 
 
