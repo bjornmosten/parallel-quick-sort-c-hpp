@@ -55,7 +55,6 @@ int quick_sort_local(int *data, int data_n) {
 int median(thread_data_t *thread_data) {
     int *data = thread_data->data;
     int data_n = thread_data->data_n;
-    quick_sort_local(data, data_n);
     return data[data_n / 2];
 }
 
@@ -97,11 +96,9 @@ void global_sort(thread_data_t ** all_threads, int group_size, int thread_id) {
     thread_data_t * current_thread = all_threads[thread_id];
     thread_data_t * partner_thread = all_threads[partner_thread_id];
     int current_thread_median = median(current_thread); 
-
-
-// Exchange data
     int tid0 = (g) + group_thread_start;
     int tid1 = group_thread_end - (g)-1;
+
     thread0 = thread_data[tid0];
     thread1 = thread_data[tid1];
     // Values to move from low (0) to high (1)
