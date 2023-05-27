@@ -10,6 +10,7 @@
 #include <unistd.h>
 
 
+#define USE_BUILTIN_QSORT 0
 typedef struct thread_data {
     int * data;
     int data_n;
@@ -19,6 +20,10 @@ void swap_values(int *a, int *b) {
     int temp = *a;
     *a = *b;
     *b = temp;
+}
+int cmpfunc(const void *a, const void *b) {
+    //
+    return (*(int *)a - *(int *)b);
 }
 
 int partition(int * data, int data_n) {
@@ -49,7 +54,6 @@ int quick_sort_local(int * data, int data_n) {
 int median(thread_data_t * thread_data) {
     int * data = thread_data->data;
     int data_n = thread_data->data_n;
-    quick_sort_local(data, data_n);
     return data[data_n / 2];
 }
 
@@ -62,6 +66,24 @@ void print_array(thread_data_t ** thread_data, int threads_n) {
         printf("\n");
     }
 
+}
+void move_values(thread_data_t *__restrict thread_0,
+                 thread_data_t *__restrict thread_1, int *move_from_0,
+                 int *move_from_1, int move_from_0_n, int move_from_1_n) {
+    for (int hi = 0; hi < move_from_1_n; hi++) {
+        int index = move_from_1[hi];
+        int value = thread_1->data[index];
+        thread_1->data[index] = thread_0->data[move_from_0[hi]];
+        thread_0->data[move_from_0[hi]] = value;
+    }
+    for (int li = 0; li + move_from_1_n < move_from_0_n; li++) {
+        // Start from the values that could not be swapped and have to be added
+        int move_index = move_from_0[li + (move_from_1_n)];
+        thread_1->data[thread_1->data_n] = thread_0->data[move_index];
+        thread_0->data[move_index] = thread_0->data[thread_0->data_n - 1];
+        thread_0->data_n--;
+        thread_1->data_n++;
+    }
 }
 
 
@@ -76,6 +98,8 @@ void global_sort(thread_data_t ** thread_data, int group_thread_start, int group
     }
     median_avg /= group_size;
     // Exchange data
+    int * move_from_low = malloc(thread_data[tid0]->data_n * sizeof(int));
+    int * move_from_high = malloc(thread_data[tid1]->data_n * sizeof(int));
     for (int g = 0; g < group_size / 2; g++) {
         const int tid0 = g + group_thread_start;
         const int tid1 = group_thread_end - g - 1;
@@ -83,7 +107,6 @@ void global_sort(thread_data_t ** thread_data, int group_thread_start, int group
         thread_data_t *thread1 = thread_data[tid1];
         int values_low_to_high = 0;
         int values_high_to_low = 0;
-        int move_from_low[thread_data[tid0]->data_n];
         int move_from_low_n = 0;
         for (int i = 0; i < thread0->data_n; i++) {
             if (thread0->data[i] > median_avg) {
@@ -91,7 +114,6 @@ void global_sort(thread_data_t ** thread_data, int group_thread_start, int group
                 move_from_low_n++;
             }
         }
-        int move_from_high[thread_data[tid1]->data_n];
         int move_from_high_n = 0;
         for(int i = 0; i < thread1->data_n; i++) {
             if (thread1->data[i] <= median_avg) {
@@ -102,67 +124,19 @@ void global_sort(thread_data_t ** thread_data, int group_thread_start, int group
         //If more values are going to be moved from low to high, swap values and then
         //perform transfers which increase or decrease data_n
         if(move_from_low_n <= move_from_high_n) { 
-            int li = 0;
-            for (li = 0; li < move_from_low_n; li++) {
-                int index = move_from_low[li];
-                int value = thread0->data[index];
-                thread0->data[index] = thread1->data[move_from_high[li]];
-                thread1->data[move_from_high[li]] = value;
-            }
-            for(int hi = 0; hi+li < move_from_high_n; hi++) {
-                int move_index = move_from_high[li + hi];
-                thread0->data[thread0->data_n] = thread1->data[move_index];
-
-                int last_non_zero = 0;
-                for(int i = thread_data[tid1]->data_n-1; i >= 0; i--) {
-                    if(thread1->data[i] != 0) {
-                        last_non_zero = thread1->data[i];
-                        break;
-                    }
-                }
-                thread1->data[move_index] = last_non_zero;
-
-                thread0->data_n++;
-                thread1->data_n--;
-            }
+            move_values(thread1, thread0, move_from_high, move_from_low, move_from_high_n, move_from_low_n);
         }
         //If more values are going to be moved from high to low, swap values and then
         //perform transfers which increase or decrease data_n
         if(move_from_low_n > move_from_high_n) {
-            int hi = 0;
-            for (hi = 0; hi < move_from_high_n; hi++) {
-                int index = move_from_high[hi];
-                int value = thread1->data[index];
-                thread1->data[index] = thread0->data[move_from_low[hi]];
-                thread0->data[move_from_low[hi]] = value;
-            }
-            for(int li = 0; li+hi < move_from_low_n; li++) {
-                int move_index = move_from_low[li + hi];
-                thread1->data[thread1->data_n] = thread0->data[move_index];
-                //Find last non-zero element
-                int last_non_zero = 0;
-                for (int i = thread0->data_n - 1; i >= 0; i--) {
-                    if (thread0->data[i] != 0) {
-                        last_non_zero = thread0->data[i];
-                        break;
-                    }
-                }
-                thread0->data[move_index] = last_non_zero;
-                thread1->data_n++;
-                thread0->data_n--;
-            }
+            move_values(thread0, thread1, move_from_low, move_from_high, move_from_low_n, move_from_high_n);
         }
-
-
-
-        int extend_high = values_low_to_high - values_high_to_low;
-        int extend_low = values_high_to_low - values_low_to_high;
-
-
-
+        #pragma omp task
+        qsort(thread0->data, thread0->data_n, sizeof(int), cmpfunc);
+        #pragma omp task
+        qsort(thread1->data, thread1->data_n, sizeof(int), cmpfunc);
     }
-    #pragma omp parallel
-    {
+    #pragma omp taskwait
         #pragma omp task 
         {
             global_sort(thread_data, group_thread_start, group_thread_start + group_size / 2);
@@ -171,20 +145,21 @@ void global_sort(thread_data_t ** thread_data, int group_thread_start, int group
         {
             global_sort(thread_data, group_thread_start + group_size / 2, group_thread_end);
         }
-    }
+    #pragma omp taskwait
 }
 
 int quick_sort_parallel(thread_data_t ** thread_data, int threads_n) {
-    int * thread_medians = (int *)malloc(threads_n * sizeof(int));
-    #pragma omp parallel for schedule(dynamic) num_threads(threads_n)
     for (int tid = 0; tid < threads_n; ++tid) {
+        #pragma omp task
         quick_sort_local(thread_data[tid]->data, thread_data[tid]->data_n);
     }
+    #pragma omp taskwait
     global_sort(thread_data, 0, threads_n);
-    #pragma omp parallel for schedule(dynamic) num_threads(threads_n)
     for (int tid = 0; tid < threads_n; ++tid) {
+        #pragma omp task
         quick_sort_local(thread_data[tid]->data, thread_data[tid]->data_n);
     }
+    #pragma omp taskwait
 }
 
 bool validate(thread_data_t ** thread_data, int threads_n) {
@@ -215,8 +190,8 @@ int main() {
     // scanf("%d", &n);
     // printf("Enter the number of threads: ");
     // scanf("%d", &threads);
-    n = 2000;
-    num_threads = 8;
+    n = 20000;
+    num_threads = 4;
     n *= 1000;
     int data_n_per_thread = n / num_threads;
 
@@ -233,14 +208,18 @@ int main() {
     }
     //Set omp threads
     omp_set_num_threads(num_threads);
-    quick_sort_parallel(thread_data, num_threads);
+    #pragma omp parallel
+    #pragma omp single
+    {
+        quick_sort_parallel(thread_data, num_threads);
+    }
     printf("\n");
-    /*bool valid = validate(thread_data, num_threads);
+    bool valid = validate(thread_data, num_threads);
     if(valid) {
         printf("Valid\n");
     } else {
         printf("Invalid\n");
-    }*/
+    }
 
     printf("\n");
     
