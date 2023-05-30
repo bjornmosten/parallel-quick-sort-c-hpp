@@ -11,11 +11,11 @@
 
 #define USE_BUILTIN_QSORT 0
 
-typedef struct thread_data {
+typedef struct processor_data {
     int *data;
     int data_n;
-    int low_last;
-} thread_data_t;
+    int split_index;
+} processor_data_t;
 
 void swap_values(int *a, int *b) {
     int temp = *a;
@@ -52,88 +52,156 @@ int quick_sort_local(int *data, int data_n) {
     return data[pivot];
 }
 
-int median(thread_data_t *thread_data) {
-    int *data = thread_data->data;
-    int data_n = thread_data->data_n;
+int median(processor_data_t *processor_data) {
+    int *data = processor_data->data;
+    int data_n = processor_data->data_n;
     return data[data_n / 2];
 }
 
-void print_array(thread_data_t **thread_data, int threads_n) {
-    for (int tid = 0; tid < threads_n; tid++) {
-        printf("Thread %d: ", tid);
-        for (int i = 0; i < thread_data[tid]->data_n; i++) {
-            printf("%d ", thread_data[tid]->data[i]);
+void print_array(processor_data_t **processor_data, int processors_n) {
+    for (int tid = 0; tid < processors_n; tid++) {
+        printf("processor %d: ", tid);
+        for (int i = 0; i < processor_data[tid]->data_n; i++) {
+            printf("%d ", processor_data[tid]->data[i]);
         }
         printf("\n");
     }
 }
 
-void move_values(thread_data_t *__restrict thread_0,
-                 thread_data_t *__restrict thread_1, int *move_from_0,
-                 int *move_from_1, int move_from_0_n, int move_from_1_n) {
-    for (int hi = 0; hi < move_from_1_n; hi++) {
-        int index = move_from_1[hi];
-        int value = thread_1->data[index];
-        thread_1->data[index] = thread_0->data[move_from_0[hi]];
-        thread_0->data[move_from_0[hi]] = value;
+void move_values(processor_data_t *__restrict processor_0,
+                 int move_from_0_start, int move_from_0_end,
+                 processor_data_t *__restrict processor_1,
+                 int move_from_1_start, int move_from_1_end) {
+    int swap_n = move_from_1_end - move_from_1_start;
+    for (int hi = 0; hi < swap_n; hi++) {
+        int index_0 = move_from_0_start + hi;
+        int index_1 = move_from_1_start + hi;
+        printf("Swapping indexes %d and %d\n", index_0, index_1);
+        printf("Values %d and %d\n", processor_0->data[index_0],
+               processor_1->data[index_1]);
+        int value = processor_1->data[index_1];
+        processor_1->data[index_1] = processor_0->data[index_0];
+        processor_0->data[index_0] = value;
     }
-    for (int li = 0; li + move_from_1_n < move_from_0_n; li++) {
+    int move_to_1_n = (move_from_0_end - move_from_0_start) - swap_n;
+    for (int li = 0; li < move_to_1_n; li++) {
+        printf("Moving %d to index %d\n", processor_0->data[processor_0->data_n - 1],
+               processor_1->data_n);
         // Start from the values that could not be swapped and have to be added
-        int move_index = move_from_0[li + (move_from_1_n)];
-        thread_1->data[thread_1->data_n] = thread_0->data[move_index];
-        thread_0->data[move_index] = thread_0->data[thread_0->data_n - 1];
-        thread_0->data_n--;
-        thread_1->data_n++;
+        int move_index = swap_n + li;
+        processor_1->data[processor_1->data_n] = processor_0->data[move_index];
+        // Find last non-0 index
+        int last_index = processor_0->data_n - 1;
+        for (int i = processor_0->data_n-1; i > 0; i--) {
+            if (processor_0->data[i] != 0) {
+                last_index = i;
+                break;
+            }
+        }
+        processor_0->data[move_index] =
+            processor_0->data[last_index];
+        processor_0->data_n--;
+        processor_1->data_n++;
     }
 }
 
-void global_sort(thread_data_t ** all_threads, int group_size, int thread_id) {
+// Find the split point. Assumes that the values are sorted
+void find_split(processor_data_t *current_processor,
+                processor_data_t *partner_processor) {
+    int median_avg = 0;
+    int group_pivot =
+        (median(current_processor) + median(partner_processor)) / 2;
+    int split_index = 0;
+    for (int i = 0; i < current_processor->data_n; i++) {
+        if (current_processor->data[i] > group_pivot) {
+            split_index = i;
+            break;
+        }
+    }
+    current_processor->split_index = split_index;
+}
+
+void global_sort(processor_data_t **all_processors, int group_start,
+                 int group_size) {
     if (group_size <= 1) {
         return;
     }
-    int median_avg = 0;
-    int partner_thread_id = group_size - thread_id - 1;
-    thread_data_t * current_thread = all_threads[thread_id];
-    thread_data_t * partner_thread = all_threads[partner_thread_id];
-    int current_thread_median = median(current_thread); 
-    int tid0 = (g) + group_thread_start;
-    int tid1 = group_thread_end - (g)-1;
-
-    thread0 = thread_data[tid0];
-    thread1 = thread_data[tid1];
-    // Values to move from low (0) to high (1)
-    int move_from_n = 0;
-    // If more values are going to be moved from low to high, swap
-    // values and then perform transfers which increase or decrease
-    qsort(thread1->data, thread1->data_n, sizeof(int), cmpfunc);
-}
-
-int quick_sort_parallel(thread_data_t **thread_data, int threads_n) {
-
-    for (int tid = 0; tid < threads_n; ++tid) {
+    for (int i = 0; i < group_size; i++) {
+        int partner_processor_id = group_start + group_size - i - 1;
+        printf("Current processor: %d, partner processor: %d\n",
+               i + group_start, partner_processor_id);
+        processor_data_t *current_processor = all_processors[i+group_start];
+        processor_data_t *partner_processor =
+            all_processors[partner_processor_id];
 #pragma omp task
-        qsort(thread_data[tid]->data, thread_data[tid]->data_n, sizeof(int),
-              cmpfunc);
+        find_split(current_processor, partner_processor);
     }
 #pragma omp taskwait
-    global_sort(thread_data, threads_n, 0);
+    for (int i = 0; i < group_size / 2; i++) {
+        print_array(all_processors, 4);
+        int current_processor_id = i + group_start;
+        int partner_processor_id = group_start + group_size - i - 1;
+        printf("Current processor: %d, partner processor: %d\n",
+               current_processor_id, partner_processor_id);
+        processor_data_t *current_processor =
+            all_processors[current_processor_id];
+        processor_data_t *partner_processor =
+            all_processors[partner_processor_id];
+        int move_from_low_start = current_processor->split_index;
+        int move_from_low_end = current_processor->data_n;
+        int move_from_high_start = 0;
+        int move_from_high_end = partner_processor->split_index;
+        // If more values are going to be moved from low to high, swap
+        // values and then perform transfers which increase or decrease
+        if (move_from_low_end - move_from_low_start <
+            move_from_high_end - move_from_high_start) {
+            move_values(current_processor, move_from_low_start,
+                        move_from_low_end, partner_processor,
+                        move_from_high_start, move_from_high_end);
+        } else {
+            move_values(partner_processor, move_from_high_start,
+                        move_from_high_end, current_processor,
+                        move_from_low_start, move_from_low_end);
+        }
+        qsort(current_processor->data, current_processor->data_n, sizeof(int),
+              cmpfunc);
+        qsort(partner_processor->data, partner_processor->data_n, sizeof(int),
+              cmpfunc);
+    }
+    global_sort(all_processors, group_start, group_size / 2);
+    global_sort(all_processors, group_start + group_size / 2, group_size / 2);
+}
+
+int quick_sort_parallel(processor_data_t **processor_data, int processors_n) {
+
+    for (int tid = 0; tid < processors_n; ++tid) {
+#pragma omp task
+        qsort(processor_data[tid]->data, processor_data[tid]->data_n,
+              sizeof(int), cmpfunc);
+    }
+#pragma omp taskwait
+    printf("Global sort start\n");
+    global_sort(processor_data, 0, processors_n);
     printf("Global sort done\n");
     return 0;
 }
 
-bool validate(thread_data_t **thread_data, int threads_n) {
-    for (int tid = 0; tid < threads_n; tid++) {
+bool validate(processor_data_t **processor_data, int processors_n) {
+    for (int tid = 0; tid < processors_n; tid++) {
         if (tid > 0) {
-            if (thread_data[tid - 1]->data[thread_data[tid - 1]->data_n - 1] >
-                thread_data[tid]->data[0]) {
+            if (processor_data[tid - 1]
+                    ->data[processor_data[tid - 1]->data_n - 1] >
+                processor_data[tid]->data[0]) {
                 printf("Error: %d > %d\n",
-                       thread_data[tid - 1]->data[thread_data[tid]->data_n - 1],
-                       thread_data[tid]->data[0]);
+                       processor_data[tid - 1]
+                           ->data[processor_data[tid]->data_n - 1],
+                       processor_data[tid]->data[0]);
                 return false;
             }
         }
-        for (int i = 0; i < thread_data[tid]->data_n - 1; i++) {
-            if (thread_data[tid]->data[i] > thread_data[tid]->data[i + 1]) {
+        for (int i = 0; i < processor_data[tid]->data_n - 1; i++) {
+            if (processor_data[tid]->data[i] >
+                processor_data[tid]->data[i + 1]) {
                 return false;
             }
         }
@@ -150,22 +218,22 @@ bool validate_builtin(int *data, int n) {
     return true;
 }
 
-void setup_threads() {}
+void setup_processors() {}
 
 int main() {
 
     int n, num_procs;
-    int num_threads = 16;
     // Random data
     // printf("Enter the number of data to be sorted (in millions): ");
     // scanf("%d", &n);
-    // printf("Enter the number of threads: ");
-    // scanf("%d", &threads);
-    n = 200000;
-    num_procs = 32;
-    n *= 1000;
-    int randmax = (int)1E8;
-    int data_n_per_thread = n / num_procs;
+    // printf("Enter the number of processors: ");
+    // scanf("%d", &processors);
+    n = 1;
+    num_procs = 4;
+    n *= 10;
+    int randmax = (int)1E2;
+    int data_n_per_processor = n / num_procs;
+    int num_threads = num_procs;
 
     omp_set_dynamic(0);
     omp_set_nested(1);
@@ -175,7 +243,7 @@ int main() {
 #if USE_BUILTIN_QSORT
     int *data = (int *)malloc(n * sizeof(int));
     for (int i = 0; i < n; i++) {
-        data[i] = rand() % randmax;
+        data[i] = rand() % randmax + 1;
     }
     printf("Using builtin qsort\n");
     qsort(data, n, sizeof(int), cmpfunc);
@@ -187,26 +255,28 @@ int main() {
     return 0;
 #endif
 
-    thread_data_t **thread_data =
-        (thread_data_t **)malloc(num_procs * sizeof(thread_data_t *));
-    void *thread_data_mem = malloc(num_procs * sizeof(thread_data_t));
+    processor_data_t **processor_data =
+        (processor_data_t **)malloc(num_procs * sizeof(processor_data_t *));
+    void *processor_data_mem = malloc(num_procs * sizeof(processor_data_t));
     for (int tid = 0; tid < num_procs; tid++) {
-        thread_data[tid] = (thread_data_t *)thread_data_mem + tid;
-        thread_data[tid]->data =
-            (int *)malloc(data_n_per_thread * 1.1 * sizeof(int));
-        thread_data[tid]->data_n = data_n_per_thread;
-        for (int i = 0; i < data_n_per_thread; i++) {
-            thread_data[tid]->data[i] = rand() % randmax;
+        processor_data[tid] = (processor_data_t *)processor_data_mem + tid;
+        processor_data[tid]->data =
+            (int *)malloc(data_n_per_processor * 2 * sizeof(int));
+        processor_data[tid]->data_n = data_n_per_processor;
+        for (int i = 0; i < data_n_per_processor; i++) {
+            processor_data[tid]->data[i] = rand() % randmax + 1;
         }
     }
 
-#pragma omp parallel num_threads(num_threads)
+    print_array(processor_data, num_procs);
+#pragma omp parallel num_threads(num_procs)
     {
 #pragma omp single nowait
-        quick_sort_parallel(thread_data, num_procs);
+        quick_sort_parallel(processor_data, num_procs);
     }
+    print_array(processor_data, num_procs);
     printf("\n");
-    bool valid = validate(thread_data, num_procs);
+    bool valid = validate(processor_data, num_procs);
     if (valid) {
         printf("Valid\n");
     } else {
