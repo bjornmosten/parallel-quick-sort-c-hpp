@@ -98,15 +98,13 @@ void global_sort(thread_data_t ** thread_data, int group_thread_start, int group
     }
     median_avg /= group_size;
     // Exchange data
-    int * move_from_low = malloc(thread_data[tid0]->data_n * sizeof(int));
-    int * move_from_high = malloc(thread_data[tid1]->data_n * sizeof(int));
+    int * move_from_low = malloc(thread_data[0]->data_n*0.75 * sizeof(int));
+    int * move_from_high = malloc(thread_data[0]->data_n*0.75 * sizeof(int));
     for (int g = 0; g < group_size / 2; g++) {
         const int tid0 = g + group_thread_start;
         const int tid1 = group_thread_end - g - 1;
         thread_data_t *thread0 = thread_data[tid0];
         thread_data_t *thread1 = thread_data[tid1];
-        int values_low_to_high = 0;
-        int values_high_to_low = 0;
         int move_from_low_n = 0;
         for (int i = 0; i < thread0->data_n; i++) {
             if (thread0->data[i] > median_avg) {
@@ -154,7 +152,9 @@ int quick_sort_parallel(thread_data_t ** thread_data, int threads_n) {
         quick_sort_local(thread_data[tid]->data, thread_data[tid]->data_n);
     }
     #pragma omp taskwait
+    #pragma omp task
     global_sort(thread_data, 0, threads_n);
+    #pragma omp taskwait
     for (int tid = 0; tid < threads_n; ++tid) {
         #pragma omp task
         quick_sort_local(thread_data[tid]->data, thread_data[tid]->data_n);
@@ -191,16 +191,26 @@ int main() {
     // printf("Enter the number of threads: ");
     // scanf("%d", &threads);
     n = 20000;
-    num_threads = 4;
+    num_threads = 2;
     n *= 1000;
     int data_n_per_thread = n / num_threads;
+    #if USE_BUILTIN_QSORT
+    printf("Using builtin qsort\n");
+    int * data = (int *)malloc(n * sizeof(int));
+    for(int i = 0; i < n; i++) {
+        data[i] = rand() % 900+100;
+    }
+    qsort(data, n, sizeof(int), cmpfunc);
+    return 0;
+    #endif
+
 
     thread_data_t **thread_data =
         (thread_data_t **)malloc(num_threads * sizeof(thread_data_t *));
     for (int tid = 0; tid < num_threads; tid++) {
         thread_data[tid] = (thread_data_t *)malloc(sizeof(thread_data_t));
         thread_data[tid]->data =
-            (int *)malloc(data_n_per_thread * 2 * sizeof(int));
+            (int *)malloc(data_n_per_thread * 1.2 * sizeof(int));
         thread_data[tid]->data_n = data_n_per_thread;
         for (int i = 0; i < data_n_per_thread; i++) {
             thread_data[tid]->data[i] = rand() % 900+100;
@@ -208,7 +218,9 @@ int main() {
     }
     //Set omp threads
     omp_set_num_threads(num_threads);
-    #pragma omp parallel
+    omp_set_dynamic(0);
+    omp_set_nested(1);
+    #pragma omp parallel num_threads(num_threads)
     #pragma omp single
     {
         quick_sort_parallel(thread_data, num_threads);
