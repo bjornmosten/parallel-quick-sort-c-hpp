@@ -66,52 +66,45 @@ void print_array(processor_data_t **processor_data, int processors_n) {
         }
         printf("\n");
     }
+    printf("\n");
 }
 
 void move_values(processor_data_t *__restrict processor_0,
                  int move_from_0_start, int move_from_0_end,
                  processor_data_t *__restrict processor_1,
-                 int move_from_1_start, int move_from_1_end) {
+                 int move_from_1_start, int move_from_1_end, processor_data_t ** all_p) {
     int swap_n = move_from_1_end - move_from_1_start;
     for (int hi = 0; hi < swap_n; hi++) {
         int index_0 = move_from_0_start + hi;
         int index_1 = move_from_1_start + hi;
-        printf("Swapping indexes %d and %d\n", index_0, index_1);
-        printf("Values %d and %d\n", processor_0->data[index_0],
-               processor_1->data[index_1]);
+        printf("Swapping indexes %d and %d with values %d and %d\n", index_0,
+               index_1, processor_0->data[index_0], processor_1->data[index_1]);
         int value = processor_1->data[index_1];
         processor_1->data[index_1] = processor_0->data[index_0];
         processor_0->data[index_0] = value;
+        print_array(all_p, 4);
     }
     int move_to_1_n = (move_from_0_end - move_from_0_start) - swap_n;
     for (int li = 0; li < move_to_1_n; li++) {
-        printf("Moving %d to index %d\n", processor_0->data[processor_0->data_n - 1],
-               processor_1->data_n);
-        // Start from the values that could not be swapped and have to be added
         int move_index = swap_n + li;
-        processor_1->data[processor_1->data_n] = processor_0->data[move_index];
-        // Find last non-0 index
-        int last_index = processor_0->data_n - 1;
-        for (int i = processor_0->data_n-1; i > 0; i--) {
-            if (processor_0->data[i] != 0) {
-                last_index = i;
-                break;
-            }
-        }
-        processor_0->data[move_index] =
-            processor_0->data[last_index];
+        processor_0->data[processor_0->data_n] = processor_1->data[move_index];
+        processor_1->data[move_index] =
+            processor_1->data[processor_1->data_n - 1];
         processor_0->data_n--;
         processor_1->data_n++;
     }
 }
 
 // Find the split point. Assumes that the values are sorted
-void find_split(processor_data_t *current_processor,
-                processor_data_t *partner_processor) {
-    int median_avg = 0;
-    int group_pivot =
-        (median(current_processor) + median(partner_processor)) / 2;
+int find_split(processor_data_t ** all_processors, int current_processor_id,
+                int group_start, int group_size) {
+    int median_sum = 0;
+    for (int i = 0; i < group_size; i++) {
+        median_sum += median(all_processors[i+group_start]);
+    }
+    int group_pivot = median_sum / group_size;
     int split_index = 0;
+    processor_data_t * current_processor = all_processors[current_processor_id];
     for (int i = 0; i < current_processor->data_n; i++) {
         if (current_processor->data[i] > group_pivot) {
             split_index = i;
@@ -119,6 +112,7 @@ void find_split(processor_data_t *current_processor,
         }
     }
     current_processor->split_index = split_index;
+    return group_pivot;
 }
 
 void global_sort(processor_data_t **all_processors, int group_start,
@@ -130,11 +124,11 @@ void global_sort(processor_data_t **all_processors, int group_start,
         int partner_processor_id = group_start + group_size - i - 1;
         printf("Current processor: %d, partner processor: %d\n",
                i + group_start, partner_processor_id);
-        processor_data_t *current_processor = all_processors[i+group_start];
-        processor_data_t *partner_processor =
-            all_processors[partner_processor_id];
-#pragma omp task
-        find_split(current_processor, partner_processor);
+        int pivot = find_split(all_processors, i + group_start, group_start,
+                               group_size);
+        printf("Pivot: %d\n", pivot);
+
+
     }
 #pragma omp taskwait
     for (int i = 0; i < group_size / 2; i++) {
@@ -153,15 +147,15 @@ void global_sort(processor_data_t **all_processors, int group_start,
         int move_from_high_end = partner_processor->split_index;
         // If more values are going to be moved from low to high, swap
         // values and then perform transfers which increase or decrease
-        if (move_from_low_end - move_from_low_start <
+        if (move_from_low_end - move_from_low_start >
             move_from_high_end - move_from_high_start) {
             move_values(current_processor, move_from_low_start,
                         move_from_low_end, partner_processor,
-                        move_from_high_start, move_from_high_end);
+                        move_from_high_start, move_from_high_end, all_processors);
         } else {
             move_values(partner_processor, move_from_high_start,
                         move_from_high_end, current_processor,
-                        move_from_low_start, move_from_low_end);
+                        move_from_low_start, move_from_low_end, all_processors);
         }
         qsort(current_processor->data, current_processor->data_n, sizeof(int),
               cmpfunc);
@@ -228,7 +222,7 @@ int main() {
     // scanf("%d", &n);
     // printf("Enter the number of processors: ");
     // scanf("%d", &processors);
-    n = 1;
+    n = 2;
     num_procs = 4;
     n *= 10;
     int randmax = (int)1E2;
