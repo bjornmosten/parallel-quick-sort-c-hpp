@@ -1,0 +1,92 @@
+\documentclass{report}
+
+\input{preamble}
+\input{macros}
+\input{letterfonts}
+
+\title{\Huge{High Performance and Parallell Computing}\\Assignment 3}
+\author{\huge{Björn Mosten}}
+\date{}
+
+\begin{document}
+
+\maketitle
+\newpage% or \cleardoublepage
+% \pdfbookmark[<level>]{<title>}{<dest>}
+\pdfbookmark[section]{\contentsname}{toc}
+\tableofcontents
+\pagebreak
+
+\chapter{}
+\setcounter{section}{1}
+\section{Introduction}
+The goal of this project was to create a well-performing quick-sort process that scales well with multiple threads.
+It was written in C and utilizes the OpenMP API for parallelization.
+
+
+
+\subsection{Hardware}
+CPU: AMD Ryzen 7 3700X 8-Core Processor, with a maximum clock speed of 3.6 GHz. It has 256 KB of L1i-cache, 256 KB of L1d-cache, 4 MB of L2-cache and 32 MB of L3-cache. It has 8 cores and 2 threads per core.
+RAM: 32 GB of DDR4 RAM.
+
+\section{Solution}
+\subsection{Data Structures}
+Each thread is given a struct containing the following data:
+\begin{itemize}
+    \item \texttt{int * data} - The data to be sorted.
+    \item \texttt{int * data\_free} - A pointer to the start of the data array. This is often, but not always, the same as \textit{data}.
+    \item \texttt{int * new\_data} - Data array to be used when merging. Combines the data from \textit{tmp\_data} from another thread and 
+        \textit{data} from the current thread.
+    \item \texttt{int * tmp\_data} - Temporary data array containing the data that is to be merged into another thread.
+    \item \texttt{int data\_n} - The number of elements in the data array.
+    \item \texttt{int tmp\_data\_n} - The number of elements in the tmp\_data array.
+\end{itemize}
+
+\subsection{Algorithm}
+Each thread is given an equal amount of data to sort. Initially, each thread sorts its own data using the default qsort function. 
+All threads are put into a single group and common pivot point is calculated by taking the average of the median values of the data in each thread.
+\section{Optimization Techniques}
+\subsection{Parallelization}
+Parallelization was done with OpenMP. 
+
+\subsubsection{OpenMP}
+The outer-most loop of the body calculation was parallelized using the \texttt{parallel for} directive with T number of threads. OpenMP is given the dynamic scheduling policy, which distributes the iterations between threads dynamically with no specific order.
+The dynamic sheduling policy gave a 20\% performance improvement over the static scheduling policy. 
+
+OpenMP could handle the parallelization of the main loop without any major changes to existing code. A omp reducer directive was added to the force calculation loop to avoid having to manually add the forces together after the loop.
+
+
+\subsection{Loop Unrolling}
+GCC was given the \texttt{-funroll-loops} flag to avoid us having to unroll loops manually. This tells the compiler to unroll loops that are small enough, reducing the number of jumps the program has to make. Additionally, the loops dependent on the number of particles (N) were given a GCC pragma hint to unroll with a value of 10.
+
+
+\section{Compilator}
+GCC 11 was used for compilation with the following flags:
+\begin{lstlisting}
+    -Ofast 
+    -flto 
+    -ftree-vectorize 
+    -march=native 
+    -mtune=native
+    -fopenmp 
+    -funroll-loops  
+    -mno-vzeroupper 
+    -fno-trapping-math 
+    -fno-signaling-nans 
+    -funsafe-math-optimizations
+\end{lstlisting}
+
+\section{End Results}
+Parameters: 5000 particles, 100 timesteps, 0.001 timestep size.
+
+
+
+
+\includegraphics[width=\textwidth]{pthreads.png}
+\includegraphics[width=\textwidth]{openmp.png}
+
+
+\bibliographystyle{plain}
+\bibliography{bib}
+
+\end{document}
