@@ -147,6 +147,7 @@ int find_split(int * data, int data_n, int median) {
 
 void global_sort(thread_data_t **thread_data, int group_size,
                  int current_thread_id) {
+    #pragma omp barrier
     if (group_size == 1) {
         return;
     }
@@ -155,7 +156,7 @@ void global_sort(thread_data_t **thread_data, int group_size,
     int thread_id_in_group = current_thread_id % group_size;
     int median_avg = 0;
     // Find average of medians of the threads belonging to the group
-    // This is calculated by all threads in the group which is unnecessary, but
+    // This is calculated by all threads in the group - which is not strictly necessary - but
     // faster than the overhead of communicating the median_avg to all threads
     for (int tid = 0; tid < group_size; tid++) {
         median_avg += median(thread_data[tid + group_start]);
@@ -168,8 +169,9 @@ void global_sort(thread_data_t **thread_data, int group_size,
     const int tid1 = group_start + (group_size - 1) - thread_id_in_group;
     thread_data_t *thread0 = thread_data[tid0];
     thread_data_t *thread1 = thread_data[tid1];
-    int move_from_current_n = 0;
+    // Find partition index for each thread
     int split_index = find_split(thread0->data, thread0->data_n, median_avg);
+    //Update split index for this thread before waiting for other threads
     thread0->split_index = split_index;
 #pragma omp barrier
     int * new_data = merge_data(thread0, thread1, (tid0 < tid1));
@@ -177,26 +179,17 @@ void global_sort(thread_data_t **thread_data, int group_size,
     free(thread0->data);
     thread0->data = new_data;
     thread0->data_n = thread0->new_data_n;
-#pragma omp barrier
     global_sort(thread_data, group_size / 2, current_thread_id);
 }
 
 int quick_sort_parallel(thread_data_t **thread_data, int threads_n) {
-#pragma omp parallel for
-    for (int i = 0; i < threads_n; i++) {
-            qsort(thread_data[i]->data, thread_data[i]->data_n, sizeof(int),
-                  cmpfunc);
-    }
 
 #pragma omp parallel
     {
-        for (int i = 0; i < threads_n; i++) {
-#pragma omp single nowait
-            {
-                int tid = omp_get_thread_num();
-                global_sort(thread_data, threads_n, tid);
-            }
-        }
+                int i = omp_get_thread_num();
+                qsort(thread_data[i]->data, thread_data[i]->data_n, sizeof(int),
+                      cmpfunc);
+                global_sort(thread_data, threads_n, i);
     }
     return 0;
 }
@@ -232,17 +225,16 @@ int main() {
     int n;
     //"Threads" to use for sorting (aka processors)
     int num_threads = num_omp_threads;
+    int max_rand = 1e9;
     // Random data
     // printf("Enter the number of data to be sorted (in millions): ");
     // scanf("%d", &n);
     // printf("Enter the number of threads: ");
     // scanf("%d", &threads);
-    n = 4;
-    n *= 10;
+    n = 40000;
+    n *= 1000;
     int data_n_per_thread = n / num_threads;
-    // Allocate a bit more memory than needed to avoid reallocating
-    const double alloc_multiplier = 2;
-    const double alloc_multiplier_tmp = 0.8;
+    const double alloc_multiplier = 1;
 
     int *builtin_qsort_data = (int *)malloc(n * sizeof(int));
     thread_data_t **thread_data =
@@ -255,7 +247,7 @@ int main() {
         thread_data[tid]->data_free = thread_data[tid]->data;
         thread_data[tid]->data_n = data_n_per_thread;
         for (int i = 0; i < data_n_per_thread; i++) {
-            int rand_val = rand() % 90000 + 100;
+            int rand_val = rand() % max_rand;
             thread_data[tid]->data[i] = rand_val;
             builtin_qsort_data[tid * data_n_per_thread + i] = rand_val;
         }
@@ -264,7 +256,7 @@ int main() {
     printf("Using builtin qsort\n");
     int *data = (int *)malloc(n * sizeof(int));
     for (int i = 0; i < n; i++) {
-        data[i] = rand() % 90000 + 100;
+        data[i] = rand() % max_rand;
     }
     qsort(data, n, sizeof(int), cmpfunc);
     return 0;
@@ -272,7 +264,7 @@ int main() {
     // Set omp threads
     omp_set_num_threads(num_omp_threads);
     quick_sort_parallel(thread_data, num_threads);
-    print_array(thread_data, num_threads);
+    //print_array(thread_data, num_threads);
     // Calculate number of values in each thread
     int total_n = 0;
     for (int tid = 0; tid < num_threads; tid++) {

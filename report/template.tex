@@ -43,21 +43,22 @@ Each thread is given a struct containing the following data:
 \end{itemize}
 
 \subsection{Algorithm}
-Each thread is given an equal amount of data to sort. Initially, each thread sorts its own data using the default qsort function. 
-All threads are put into a single group and common pivot point is calculated by taking the average of the median values of the data in each thread.
+Each thread is given an equal amount of data to sort. Initially, each thread sorts its own data using the default C qsort function. 
+All threads are put into a single group and common pivot point is calculated by taking the average of the median values of all threads in each group.
 \section{Optimization Techniques}
 \subsection{Parallelization}
 Parallelization was done with OpenMP. 
 
-\subsubsection{OpenMP}
-The outer-most loop of the body calculation was parallelized using the \texttt{parallel for} directive with T number of threads. OpenMP is given the dynamic scheduling policy, which distributes the iterations between threads dynamically with no specific order.
-The dynamic sheduling policy gave a 20\% performance improvement over the static scheduling policy. 
+Each thread is given 1/N of the data to sort, where N is the number of threads.
+Initially, each thread sorts its own data using the default C qsort function. A group of N threads is created and each thread is given a 'partner' in said group. Each pair consists of one 'lower' part and one 'upper' part. 
+Each thread calculates the average of the medians in its given group. This calculation may not be necessary, but by calculating it in each threads allows us to remove the overhead of having to communicate the median values between threads. 
+Each thread then partitions its data into two parts, one part containing all values lower than the average of the medians and one part containing all values higher than the average of the medians. In each pair of threads,
+the thread with a higher thread id is given the upper part part of its partner thread, and the thread with a lower thread id is given the lower part of its partner thread.
 
-OpenMP could handle the parallelization of the main loop without any major changes to existing code. A omp reducer directive was added to the force calculation loop to avoid having to manually add the forces together after the loop.
+
 
 
 \subsection{Loop Unrolling}
-GCC was given the \texttt{-funroll-loops} flag to avoid us having to unroll loops manually. This tells the compiler to unroll loops that are small enough, reducing the number of jumps the program has to make. Additionally, the loops dependent on the number of particles (N) were given a GCC pragma hint to unroll with a value of 10.
 
 
 \section{Compilator}
@@ -77,12 +78,10 @@ GCC 11 was used for compilation with the following flags:
 \end{lstlisting}
 
 \section{End Results}
-Parameters: 5000 particles, 100 timesteps, 0.001 timestep size.
 
 
 
 
-\includegraphics[width=\textwidth]{pthreads.png}
 \includegraphics[width=\textwidth]{openmp.png}
 
 

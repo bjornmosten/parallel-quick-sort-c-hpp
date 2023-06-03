@@ -1,12 +1,12 @@
 # Fdb version 3
-["bibtex template"] 1685644279 "template.aux" "template.bbl" "template" 1685644279
+["bibtex template"] 1685813074 "template.aux" "template.bbl" "template" 1685813074
   "/usr/share/texlive/texmf-dist/bibtex/bst/base/plain.bst" 1292289607 20613 bd3fbfa9f64872b81ac57a0dd2ed855f ""
   "bib.bib" 1683472231 374 2f44f11480ddca82dcb34e7d3beb7572 ""
-  "template.aux" 1685644279 3659 a1b537898e918851b566acf5af4730bc "pdflatex"
+  "template.aux" 1685813074 3564 3d1dc74928e9408617039b962545ca37 "pdflatex"
   (generated)
-  "template.bbl"
   "template.blg"
-["pdflatex"] 1685644279 "template.tex" "template.pdf" "template" 1685644279
+  "template.bbl"
+["pdflatex"] 1685813074 "template.tex" "template.pdf" "template" 1685813074
   "/etc/texmf/web2c/texmf.cnf" 1642605379 475 c0e671620eb5563b2130f56340a5fde8 ""
   "/home/bjorn/.texlive2019/texmf-var/fonts/pk/ljfour/jknappen/ec/tcrm0900.600pk" 1675965509 10448 27ac39e23b973e1fdb5cdca2b8f346e3 ""
   "/home/bjorn/.texlive2019/texmf-var/fonts/pk/ljfour/jknappen/ec/tcrm1000.600pk" 1675265888 11524 e4566bdca2db867b58fc3b2ba5a8be2d ""
@@ -19,7 +19,6 @@
   "/usr/share/texlive/texmf-dist/fonts/tfm/public/amsfonts/symbols/msbm10.tfm" 1246382020 908 2921f8a10601f252058503cc6570e581 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/public/amsfonts/symbols/msbm5.tfm" 1246382020 940 75ac932a52f80982a9f8ea75d03a34cf ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/public/amsfonts/symbols/msbm7.tfm" 1246382020 940 228d6584342e91276bf566bcf9716b83 ""
-  "/usr/share/texlive/texmf-dist/fonts/tfm/public/cm/cmbx10.tfm" 1136768653 1328 c834bbb027764024c09d3d2bf908b5f0 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/public/cm/cmbx12.tfm" 1136768653 1324 c910af8c371558dc20f2d7822f66fe64 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/public/cm/cmcsc10.tfm" 1136768653 1300 63a6111ee6274895728663cf4b4e7e81 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/public/cm/cmr12.tfm" 1136768653 1288 655e228510b4c2a1abe905c368440826 ""
@@ -36,7 +35,6 @@
   "/usr/share/texlive/texmf-dist/fonts/tfm/public/newpx/zplsyc.tfm" 1364773518 1000 81a35430b1ca3e3831d65e954d172204 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/public/newpx/zplsym.tfm" 1427059271 1544 fa3cb0c1f8a64113ddaeecced1baf07f ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/public/newtx/txex-bar.tfm" 1487028062 872 42a11c392ad05634fee0c67e353926cf ""
-  "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb" 1248133631 34811 78b52f49e893bcba91bd7581cdc144c0 ""
   "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx12.pfb" 1248133631 32080 340ef9bf63678554ee606688e7b5339d ""
   "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb" 1248133631 35752 024fb6c41858982481f6968b5fc26508 ""
   "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr17.pfb" 1248133631 32362 179c33bbf43f19adbb3825bb4e36e57a ""
@@ -261,13 +259,12 @@
   "macros.tex" 1683472231 3389 93000260d2aea292d29c76d4ace77a29 ""
   "openmp.png" 1683900873 18526 94e580125a2dc0c531df12db06a5212a ""
   "preamble.tex" 1683472231 20053 e28bd026600dbada898c098ef00bc110 ""
-  "pthreads.png" 1684325765 18087 a89e825553a49be7e138cbce8f9bec36 ""
-  "template.aux" 1685644279 3659 a1b537898e918851b566acf5af4730bc "pdflatex"
-  "template.bbl" 1685644279 49 0eba253fc001332e731e8aba3f23127b "bibtex template"
-  "template.tex" 1685644276 3631 cd2ceb826896f1866ae4409cb3d7dcc7 ""
-  "template.toc" 1685644279 902 12467557514b9930e746b41dd67014f7 "pdflatex"
+  "template.aux" 1685813074 3564 3d1dc74928e9408617039b962545ca37 "pdflatex"
+  "template.bbl" 1685813074 49 0eba253fc001332e731e8aba3f23127b "bibtex template"
+  "template.tex" 1685813071 3511 916e1858599077f7743d2a80f5c457c1 ""
+  "template.toc" 1685813074 848 4f251ddc1b64e9ab337d631e089ea547 "pdflatex"
   (generated)
-  "template.pdf"
   "template.aux"
   "template.log"
+  "template.pdf"
   "template.toc"
