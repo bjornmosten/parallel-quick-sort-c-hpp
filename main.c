@@ -15,7 +15,6 @@ typedef struct thread_data {
     // Thread data
     int *data;
     // Pointer to the start of the data array, used for freeing the memory
-    int *data_free;
     int *new_data;
     // Temporary data for swapping and moving
     int data_n;
@@ -61,6 +60,8 @@ void print_array(thread_data_t **thread_data, int threads_n) {
     }
 }
 
+//Merge data of two threads, return new data array pointer.
+//is_lower refers to wether thread_0 is lower than thread_1
 int * merge_data(thread_data_t *__restrict thread_0,
                 thread_data_t *__restrict thread_1, bool is_lower) {
     int thread_0_index;
@@ -147,8 +148,7 @@ int find_split(int * data, int data_n, int median) {
 
 void global_sort(thread_data_t **thread_data, int group_size,
                  int current_thread_id) {
-    #pragma omp barrier
-    if (group_size == 1) {
+    if (group_size <= 1) {
         return;
     }
     int group_id = current_thread_id / group_size;
@@ -184,11 +184,12 @@ void global_sort(thread_data_t **thread_data, int group_size,
 
 int quick_sort_parallel(thread_data_t **thread_data, int threads_n) {
 
-#pragma omp parallel
+#pragma omp parallel num_threads(threads_n)
     {
                 int i = omp_get_thread_num();
                 qsort(thread_data[i]->data, thread_data[i]->data_n, sizeof(int),
                       cmpfunc);
+                #pragma omp barrier
                 global_sort(thread_data, threads_n, i);
     }
     return 0;
@@ -218,25 +219,23 @@ bool validate(thread_data_t **thread_data, int threads_n) {
 
 void setup_threads() {}
 
-int main() {
+int main(const int argc, const char **argv) {
 
     // Actual system threads to use
-    int num_omp_threads = 8;
-    int n;
+    if (argc < 4) {
+        printf("Usage: %s <num_data> <max_rand> <num_threads>\n", argv[0]);
+        return 1;
+    }
+    int num_omp_threads = atoi(argv[3]);
     //"Threads" to use for sorting (aka processors)
     int num_threads = num_omp_threads;
-    int max_rand = 1e9;
-    // Random data
-    // printf("Enter the number of data to be sorted (in millions): ");
-    // scanf("%d", &n);
-    // printf("Enter the number of threads: ");
-    // scanf("%d", &threads);
-    n = 40000;
-    n *= 1000;
+    int max_rand = atoi(argv[2]);
+    printf("Using %d threads\n", num_threads);
+    printf("Using %d max_rand\n", max_rand);
+    int n = atoi(argv[1]);
     int data_n_per_thread = n / num_threads;
     const double alloc_multiplier = 1;
 
-    int *builtin_qsort_data = (int *)malloc(n * sizeof(int));
     thread_data_t **thread_data =
         (thread_data_t **)malloc(num_threads * sizeof(thread_data_t *));
     for (int tid = 0; tid < num_threads; tid++) {
@@ -244,15 +243,14 @@ int main() {
         thread_data[tid]->tid = tid;
         thread_data[tid]->data =
             (int *)malloc(data_n_per_thread * alloc_multiplier * sizeof(int));
-        thread_data[tid]->data_free = thread_data[tid]->data;
         thread_data[tid]->data_n = data_n_per_thread;
         for (int i = 0; i < data_n_per_thread; i++) {
             int rand_val = rand() % max_rand;
             thread_data[tid]->data[i] = rand_val;
-            builtin_qsort_data[tid * data_n_per_thread + i] = rand_val;
         }
     }
 #if USE_BUILTIN_QSORT
+    int *builtin_qsort_data = (int *)malloc(n * sizeof(int));
     printf("Using builtin qsort\n");
     int *data = (int *)malloc(n * sizeof(int));
     for (int i = 0; i < n; i++) {
@@ -266,7 +264,7 @@ int main() {
     quick_sort_parallel(thread_data, num_threads);
     //print_array(thread_data, num_threads);
     // Calculate number of values in each thread
-    int total_n = 0;
+    /*int total_n = 0;
     for (int tid = 0; tid < num_threads; tid++) {
         printf("Thread %d: %d\n", tid, thread_data[tid]->data_n);
         total_n += thread_data[tid]->data_n;
@@ -278,7 +276,7 @@ int main() {
         printf("Valid\n");
     } else {
         printf("Invalid\n");
-    }
+    }*/
 
     printf("\n");
 
