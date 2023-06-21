@@ -222,23 +222,18 @@ bool validate(thread_data_t **thread_data, int threads_n) {
     return true;
 }
 
-void setup_threads() {}
 
 int main(const int argc, const char **argv) {
-
-    // Actual system threads to use
     if (argc < 4) {
         printf("Usage: %s <num_data> <max_rand> <num_threads>\n", argv[0]);
         return 1;
     }
     int num_threads = atoi(argv[3]);
-    //"Threads" to use for sorting (aka processors)
     int max_rand = atoi(argv[2]);
     printf("Using %d threads\n", num_threads);
     printf("Using %d max_rand\n", max_rand);
     int n = atoi(argv[1]);
     int data_n_per_thread = n / num_threads;
-    const double alloc_multiplier = 1;
 
     thread_data_t **thread_data =
         (thread_data_t **)malloc(num_threads * sizeof(thread_data_t *));
@@ -246,7 +241,7 @@ int main(const int argc, const char **argv) {
         thread_data[tid] = (thread_data_t *)malloc(sizeof(thread_data_t));
         thread_data[tid]->tid = tid;
         thread_data[tid]->data =
-            (int *)malloc(data_n_per_thread * alloc_multiplier * sizeof(int));
+            (int *)malloc(data_n_per_thread * sizeof(int));
         thread_data[tid]->data_n = data_n_per_thread;
         for (int i = 0; i < data_n_per_thread; i++) {
             int rand_val = rand() % max_rand;
