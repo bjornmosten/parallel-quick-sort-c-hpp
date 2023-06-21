@@ -11,6 +11,7 @@
 
 // Use builtin qsort if 1, otherwise use custom parallel quicksort
 #define USE_BUILTIN_QSORT 0
+#define VERBOSE 0
 typedef struct thread_data {
     // Thread data
     int *data;
@@ -69,6 +70,7 @@ int * merge_data(thread_data_t *__restrict thread_0,
     int * new_data;
     int new_data_n;
     int i = 0;
+    //Ugly, nested loops, but better performance than alternative
     if(is_lower) {
         thread_0_index = 0;
         thread_1_index = 0;
@@ -163,7 +165,10 @@ void global_sort(thread_data_t **thread_data, int group_size,
     }
     median_avg /= group_size;
 
+    #if VERBOSE
     printf("Thread %d: median_avg %d\n", current_thread_id, median_avg);
+    #endif
+
     // Loop through pairs of threads
     const int tid0 = current_thread_id;
     const int tid1 = group_start + (group_size - 1) - thread_id_in_group;
@@ -226,9 +231,8 @@ int main(const int argc, const char **argv) {
         printf("Usage: %s <num_data> <max_rand> <num_threads>\n", argv[0]);
         return 1;
     }
-    int num_omp_threads = atoi(argv[3]);
+    int num_threads = atoi(argv[3]);
     //"Threads" to use for sorting (aka processors)
-    int num_threads = num_omp_threads;
     int max_rand = atoi(argv[2]);
     printf("Using %d threads\n", num_threads);
     printf("Using %d max_rand\n", max_rand);
@@ -260,23 +264,8 @@ int main(const int argc, const char **argv) {
     return 0;
 #endif
     // Set omp threads
-    omp_set_num_threads(num_omp_threads);
+    omp_set_num_threads(num_threads);
     quick_sort_parallel(thread_data, num_threads);
-    //print_array(thread_data, num_threads);
-    // Calculate number of values in each thread
-    /*int total_n = 0;
-    for (int tid = 0; tid < num_threads; tid++) {
-        printf("Thread %d: %d\n", tid, thread_data[tid]->data_n);
-        total_n += thread_data[tid]->data_n;
-    }
-    printf("Total: %d\n", total_n);
-    printf("\n");
-    bool valid = validate(thread_data, num_threads);
-    if (valid) {
-        printf("Valid\n");
-    } else {
-        printf("Invalid\n");
-    }*/
 
     printf("\n");
 
