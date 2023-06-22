@@ -1,5 +1,6 @@
 # Parallel quick-sort
 Parallel implementation of quick-sort algorithm in C.
-Non-implemented performance enhancements: group barriers, group-specific memory locality.
+To-do: group barriers
 
-
+# Purpose
+Project created to satisfy requirements for UU course High Performance and Parallel Computing.
